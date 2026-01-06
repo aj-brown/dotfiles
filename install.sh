@@ -51,14 +51,20 @@ if [[ "$PLATFORM" == "ubuntu" ]]; then
     sudo apt install -y git stow zsh curl
 fi
 
-# Install Oh My Zsh (idempotent)
+# Install Oh My Zsh (non-interactive)
 if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
     echo "Installing Oh My Zsh..."
     export CHSH=no
     export RUNZSH=no
-    export KEEP_ZSHRC=yes
+    export KEEP_ZSHRC=no
     sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" --unattended
     unset CHSH RUNZSH KEEP_ZSHRC
+
+    # Remove the auto-generated .zshrc so our stowed version can take over
+    if [[ -f "$HOME/.zshrc" && ! -L "$HOME/.zshrc" ]]; then
+        echo "Removing auto-generated .zshrc to allow Stow management..."
+        rm "$HOME/.zshrc"
+    fi
 else
     echo "Oh My Zsh already installed"
 fi
