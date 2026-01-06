@@ -1,87 +1,90 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# install.sh - Dotfiles installation script for macOS
-# This script is idempotent and can be run multiple times.
-
-set -e
+set -euo pipefail
 
 DOTFILES_DIR="$HOME/dotfiles"
 REPO_URL="https://github.com/aj-brown/dotfiles.git"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+echo "Detecting operating system..."
 
-HOSTNAME=$(hostname -s)
-echo -e "${BLUE}Installing dotfiles on machine: ${NC}${HOSTNAME}"
+OS="$(uname -s)"
+case "$OS" in
+    Darwin)
+        PLATFORM="macos"
+        ;;
+    Linux)
+        if [[ -f /etc/os-release ]]; then
+            . /etc/os-release
+            if [[ "$ID" == "ubuntu" || "$ID_LIKE" == *"ubuntu"* || "$ID_LIKE" == *"debian"* || "$ID" == "debian" ]]; then
+                PLATFORM="ubuntu"
+            else
+                echo "Unsupported Linux distribution: $ID"
+                exit 1
+            fi
+        else
+            echo "Cannot detect Linux distribution"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Unsupported OS: $OS"
+        exit 1
+        ;;
+esac
 
-echo -e "${BLUE}Starting dotfiles installation...${NC}"
+echo "Platform detected: $PLATFORM"
 
-# 1. Check for Homebrew
-if ! command -v brew &> /dev/null; then
-    echo -e "${BLUE}Installing Homebrew...${NC}"
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    
-    # Add Homebrew to PATH for the current session
-    if [[ $(uname -m) == "arm64" ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    else
-        eval "$(/usr/local/bin/brew shellenv)"
+# Install prerequisites
+if [[ "$PLATFORM" == "macos" ]]; then
+    if ! command -v brew &> /dev/null; then
+        echo "Installing Homebrew..."
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
-else
-    echo -e "${GREEN}Homebrew already installed.${NC}"
+
+    echo "Installing git and stow via Homebrew..."
+    brew install git stow || true
 fi
 
-# 2. Install Git and Stow
-echo -e "${BLUE}Installing Git and GNU Stow...${NC}"
-brew install git stow
+if [[ "$PLATFORM" == "ubuntu" ]]; then
+    echo "Updating apt and installing git, stow, zsh, curl..."
+    sudo apt update
+    sudo apt install -y git stow zsh curl
+fi
 
-# 3. Clone dotfiles repository
-if [ ! -d "$DOTFILES_DIR" ]; then
-    echo -e "${BLUE}Cloning dotfiles repository...${NC}"
+# Install Oh My Zsh (idempotent)
+if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
+    echo "Installing Oh My Zsh..."
+    sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" --unattended
+else
+    echo "Oh My Zsh already installed"
+fi
+
+# Install NVM (idempotent)
+if [[ ! -d "$HOME/.nvm" ]]; then
+    echo "Installing NVM..."
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+else
+    echo "NVM already installed"
+fi
+
+# Clone dotfiles repo
+if [[ ! -d "$DOTFILES_DIR" ]]; then
+    echo "Cloning dotfiles repository..."
     git clone "$REPO_URL" "$DOTFILES_DIR"
 else
-    echo -e "${GREEN}Dotfiles directory already exists at $DOTFILES_DIR.${NC}"
+    echo "Dotfiles directory already exists"
 fi
 
-# 4. Install Oh My Zsh
-if [ ! -d "$HOME/.oh-my-zsh" ]; then
-    echo -e "${BLUE}Installing Oh My Zsh...${NC}"
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-else
-    echo -e "${GREEN}Oh My Zsh already installed.${NC}"
-fi
-
-# 5. Install NVM
-if [ ! -d "$HOME/.nvm" ]; then
-    echo -e "${BLUE}Installing NVM...${NC}"
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-else
-    echo -e "${GREEN}NVM already installed.${NC}"
-fi
-
-# 6. Symlink configurations using Stow
-echo -e "${BLUE}Symlinking configurations with Stow...${NC}"
 cd "$DOTFILES_DIR"
 
-# List of packages to stow
-PACKAGES=(zsh git nvm)
+# Stow all packages (add/remove package names as you create them)
+echo "Stowing dotfiles packages..."
+stow zsh
+stow git
+# stow nvm   # optional - only if you manage nvm-related files via stow
+# add more: stow vim, stow tmux, etc.
 
-for pkg in "${PACKAGES[@]}"; do
-    echo -e "${BLUE}Stowing $pkg...${NC}"
-    stow -v -R "$pkg"
-done
-
-# 7. Create .zshrc.local if it doesn't exist
-if [ ! -f "$HOME/.zshrc.local" ]; then
-    echo -e "${BLUE}Creating ~/.zshrc.local...${NC}"
-    touch "$HOME/.zshrc.local"
-    echo "# Device-specific overrides" >> "$HOME/.zshrc.local"
-fi
-
-echo -e "${GREEN}Dotfiles installation complete!${NC}"
-echo -e "${BLUE}Please restart your terminal or run 'source ~/.zshrc' to apply changes.${NC}"
+echo ""
+echo "Installation complete!"
+echo "Please restart your terminal or run: source ~/.zshrc"
+echo "For device-specific overrides, create ~/.zshrc.local manually."

@@ -44,6 +44,27 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
+# -----------------------------
+# Platform-specific configuration
+# -----------------------------
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS - Homebrew PATH setup
+    if [[ -x "/opt/homebrew/bin/brew" ]]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"  # Apple Silicon
+    elif [[ -x "/usr/local/bin/brew" ]]; then
+        eval "$(/usr/local/bin/brew shellenv)"     # Intel
+    fi
+
+    # Optional macOS-specific aliases
+    alias ls='ls -G'
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    # Linux (Ubuntu/Debian)
+    alias ls='ls --color=auto'
+
+    # Common user bin directory
+    export PATH="$HOME/.local/bin:$PATH"
+fi
+
 # NVM Configuration
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
