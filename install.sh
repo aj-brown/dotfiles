@@ -54,7 +54,11 @@ fi
 # Install Oh My Zsh (idempotent)
 if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
     echo "Installing Oh My Zsh..."
+    export CHSH=no
+    export RUNZSH=no
+    export KEEP_ZSHRC=yes
     sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" --unattended
+    unset CHSH RUNZSH KEEP_ZSHRC
 else
     echo "Oh My Zsh already installed"
 fi
