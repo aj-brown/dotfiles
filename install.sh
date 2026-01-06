@@ -43,12 +43,22 @@ if [[ "$PLATFORM" == "macos" ]]; then
 
     echo "Installing git and stow via Homebrew..."
     brew install git stow || true
+
+    echo "Installing starship via Homebrew..."
+    brew install starship || true
 fi
 
 if [[ "$PLATFORM" == "ubuntu" ]]; then
     echo "Updating apt and installing git, stow, zsh, curl..."
     sudo apt update
     sudo apt install -y git stow zsh curl
+
+    if ! command -v starship &> /dev/null; then
+        echo "Installing starship..."
+        curl -fsSL https://starship.rs/install.sh | sh -s -- -y
+    else
+        echo "Starship already installed"
+    fi
 fi
 
 # Install Oh My Zsh (non-interactive)
